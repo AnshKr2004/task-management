@@ -7,30 +7,34 @@ import { revalidatePath } from "next/cache"
 
 export async function getTasks(): Promise<{ tasks: Task[] | null; error: string | null }> {
   try {
-    const collection = await getCollection("tasks")
-    const tasks = await collection.find({}).toArray()
+    const collection = await getCollection("tasks");
+    const tasks = await collection.find({}).toArray();
+    
+    if (!tasks) throw new Error("No tasks found");
+
     const serializedTasks = tasks.map((task) => ({
       ...task,
       _id: task._id.toString(),
       dueDate: task.dueDate instanceof Date ? task.dueDate.toISOString() : task.dueDate,
-    }))
-    return { tasks: serializedTasks as Task[], error: null }
+    }));
+
+    return { tasks: serializedTasks as Task[], error: null };
   } catch (error) {
-    console.error("Error fetching tasks:", error)
-    return { tasks: null, error: "Failed to fetch tasks" }
+    console.error("Error fetching tasks:", error);
+    return { tasks: null, error: "Failed to fetch tasks from database" };
   }
 }
 
 export async function createTask(
-  task: Omit<Task, "_id">,
+  task: Omit<Task, "_id">
 ): Promise<{ success: boolean; error: string | null; taskId?: string }> {
   try {
-    const collection = await getCollection("tasks")
-    const result = await collection.insertOne(task)
-    revalidatePath("/")
-    return { success: true, error: null, taskId: result.insertedId.toString() }
+    const collection = await getCollection("tasks");
+    const result = await collection.insertOne(task);
+    return { success: true, error: null, taskId: result.insertedId.toString() };
   } catch (error) {
-    return { success: false, error: "Failed to create task" }
+    console.error("Error creating task:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create task" };
   }
 }
 
